@@ -23,40 +23,71 @@ def createFolder():
         print(f"Unsupported operating system: {systemOS}")
         return
 
-    files = os.listdir(folderName) 
+    files = os.listdir(folderName)
+    files.sort()
 
-    for index, i in enumerate(files, start=1):
-        if os.path.isfile(os.path.join(folderName, i)):
+    for index, fileName in enumerate(files, start=1):
+        if os.path.isfile(os.path.join(folderName, fileName)):
             newFolderPath = os.path.join(folderName, f"Epizoda {index}")
             
             # Create a folder
             os.mkdir(newFolderPath)
 
             # Copy the file to the new folder
-            shutil.move(os.path.join(folderName, i), newFolderPath)
+            shutil.move(os.path.join(folderName, fileName), newFolderPath)
 
     return folderName
 
 def findSubtitle(folderPath):
-    searchUrl = f"https://rs.titlovi.com/prevodi/?prevod={serija}&sort=1"
-    response = requests.get(searchUrl)
+    currentPage = 1
 
-    if response.status_code == 200:
-        soup = BeautifulSoup(response.text, "html.parser")
-        subtitleLinks = soup.select(".subtitleContainer [data-id]")
+    while True:
+        searchUrl = f"https://rs.titlovi.com/prevodi/?prevod={serija}&pg={currentPage}"
+        response = requests.get(searchUrl)
 
-        if subtitleLinks:
-            for index, link in enumerate(subtitleLinks, start=1):
-                dataID = link["data-id"]
-                print(f"{index}, data-id: {dataID}")
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.text, "html.parser")
+            subtitleLinks = soup.select(".subtitleContainer [data-id]")
 
-            choiceIndex = int(input("Odaberite titl(Unesite redni broj): "))
-            chosenSubtitle = subtitleLinks[choiceIndex]["data-id"]
-            subtitleDownload(chosenSubtitle, folderPath) 
+            if subtitleLinks:
+                for index, link in enumerate(subtitleLinks, start=1):
+                    dataID = link["data-id"]
+                    episodeInfo = link.select_one(".s0xe0y").get_text(strip=True)
+                    print(f"{index}. data-id: {dataID}, {episodeInfo}")
+
+                print("0. Sledeca strana")
+                print("-1. Zavrsi pretragu")
+
+                choiceIndex = getUserChoice(len(subtitleLinks))
+                if choiceIndex == 0:
+                    currentPage += 1
+                elif choiceIndex == -1:
+                    break
+                elif 1 <= choiceIndex <= len(subtitleLinks):
+                    chosenSubtitle = subtitleLinks[choiceIndex - 1]["data-id"]
+                    subtitleDownload(chosenSubtitle, folderPath) 
+                    break
+                else:
+                    print("Nevazeci izbor. Pokusajte ponovo.")
+            else:
+                print("Titl nije pronadjen")
+                break
         else:
-            print("Titl nije pronadjen")
-    else:
-        print(f"Titl nije pronadjen. HTTP Status Code: {response.status_code}")
+            print(f"Titl nije pronadjen. HTTP Status Code: {response.status_code}")
+            break
+
+
+def getUserChoice(maxIndex):
+    while True:
+        try:
+            choiceIndex = int(input("Odaberite titl (Unesite redni broj ili 0 za sledecu stranicu, -1 za izlaz.): "))
+            if -1 <= choiceIndex <= maxIndex:
+                return choiceIndex
+            else:
+                print("Nevazeci izbor. Pokusajte ponovo.")
+        except ValueError:
+            print("Nevazeci unos. Unesite broj.")
+    
 
 
 def subtitleDownload(subID, folderPath):
