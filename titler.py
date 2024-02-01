@@ -51,9 +51,13 @@ def findSubtitle(folderPath):
 
             if subtitleLinks:
                 for index, link in enumerate(subtitleLinks, start=1):
-                    dataID = link["data-id"]
-                    episodeInfo = link.select_one(".s0xe0y").get_text(strip=True)
-                    print(f"{index}. data-id: {dataID}, {episodeInfo}")
+                    try:
+                        dataID = link["data-id"]
+                        episodeInfo = link.select_one(".s0xe0y").get_text(strip=True)
+                        print(f"{index}. data-id: {dataID}, {episodeInfo}")
+                    except AttributeError:
+                        pass
+
 
                 print("0. Sledeca strana")
                 print("-1. Zavrsi pretragu")
@@ -112,7 +116,11 @@ def unzipSubtitle(zipFilePath, extractFolder):
     os.makedirs(extractFolder, exist_ok=True)
 
     with zipfile.ZipFile(zipFilePath, "r") as zip_ref:
-        zip_ref.extractall(extractFolder)
+        for index, file_info in enumerate(zip_ref.infolist(), start=1):
+            episodeFolder = os.path.join(extractFolder, f"Epizoda {index}")
+            os.makedirs(episodeFolder, exist_ok=True)
+            file_info.filename = os.path.join(f"Epizoda {index}", file_info.filename)
+            zip_ref.extract(file_info, extractFolder)
 
     print(f"Titl uspesno raspakovan u: {extractFolder}")
 
